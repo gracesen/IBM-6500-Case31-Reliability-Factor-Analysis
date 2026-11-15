@@ -1,0 +1,300 @@
+---
+title: "Case 31: Reliability and Factor Analysis"
+subtitle: "R3 Employee Proficiency and R6 Operational Effectiveness"
+author: "Grace Sen"
+institute: "IBM 6500, Cal Poly Pomona"
+date: "November 14, 2026"
+output-file: index.html
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    number-sections: true
+    smooth-scroll: true
+    code-copy: true
+    code-overflow: wrap
+    link-external-newwindow: true
+    embed-resources: true
+execute:
+  echo: true
+  warning: false
+  message: false
+editor: visual
+---
+
+# Data and Method
+
+The analysis uses the cleaned SPSS file `Case 31 Data_efcu_4.sav`. All eight items use a five-point scale from 1 = **Strongly Disagree** to 5 = **Strongly Agree**, so higher values represent more positive attitudes. No reverse coding is required. The cleaned dataset contains 128 complete responses for these items.
+
+The analysis includes:
+
+- Item means and standard deviations
+- Correlations among the items
+- Kaiser–Meyer–Olkin (KMO) measure
+- Bartlett’s test of sphericity
+- Eigenvalues and principal-component loadings
+- Communalities for convergent validity
+- A combined factor analysis for discriminant validity
+- Cronbach’s alpha
+- Corrected item-total correlations
+- Cronbach’s alpha if each item is deleted
+
+## R Setup and Data Import
+
+```{r}
+library(haven)
+library(dplyr)
+library(psych)
+library(knitr)
+
+efcu <- read_sav("~/Documents/IBM 6500/IC-Case31/Case 31 Data_efcu_4.sav")
+
+r3_items <- efcu |>
+  select(q3, q4, q5, q6) |>
+  mutate(across(everything(), as.numeric))
+
+r6_items <- efcu |>
+  select(q31, q32, q33, q34) |>
+  mutate(across(everything(), as.numeric))
+
+all_scale_items <- efcu |>
+  select(q3, q4, q5, q6, q31, q32, q33, q34) |>
+  mutate(across(everything(), as.numeric))
+```
+
+# R3: Attitude Toward Employee Proficiency
+
+## Items
+
+R3 includes four questions:
+
+- **Q3:** Credit Union employees are courteous.
+- **Q4:** Credit Union employees are helpful.
+- **Q5:** Credit Union employees are professional.
+- **Q6:** Credit Union employees are always available.
+
+## R Code
+
+```{r}
+# Descriptive statistics and correlations
+describe(r3_items)
+r3_cor <- cor(r3_items, use = "pairwise.complete.obs")
+round(r3_cor, 3)
+
+# Factorability checks
+KMO(r3_cor)
+cortest.bartlett(r3_cor, n = nrow(r3_items))
+eigen(r3_cor)$values
+
+# One-component exploratory solution
+r3_factor <- principal(
+  r3_items,
+  nfactors = 1,
+  rotate = "none",
+  scores = FALSE
+)
+r3_factor
+
+# Reliability analysis
+r3_alpha <- alpha(r3_items, check.keys = TRUE)
+r3_alpha$total
+r3_alpha$item.stats
+r3_alpha$alpha.drop
+```
+
+## Item Descriptive Statistics
+
+| Item              |  Mean | Standard deviation |
+|-------------------|------:|-------------------:|
+| Q3 – Courteous    | 4.352 |              0.659 |
+| Q4 – Helpful      | 4.312 |              0.696 |
+| Q5 – Professional | 4.078 |              0.659 |
+| Q6 – Available    | 4.078 |              0.790 |
+
+## Factor Analysis Results
+
+The KMO value was **0.775**, showing that the correlations were adequate for factor analysis. Bartlett’s test was significant, $\chi^2(6) = 263.61$, $p < .001$, which means the correlation matrix was not an identity matrix.
+
+The first component had an eigenvalue of **2.879** and explained approximately **72.0%** of the total variance. All remaining eigenvalues were below 1.0. All four items also had strong loadings on the first component.
+
+| Item              | One-component loading |
+|-------------------|----------------------:|
+| Q3 – Courteous    |                 0.809 |
+| Q4 – Helpful      |                 0.912 |
+| Q5 – Professional |                 0.854 |
+| Q6 – Available    |                 0.815 |
+
+The communalities ranged from approximately **0.66 to 0.83**, meaning that the common component explained a substantial amount of each item’s variance. The emergence of one component, strong loadings, and large communalities support the **convergent validity** of the R3 scale.
+
+## Reliability Results
+
+Cronbach’s alpha for Q3–Q6 was **0.866**, indicating good internal consistency. All corrected item-total correlations were above 0.65. Removing any item would not improve the overall reliability.
+
+| Item | Corrected item-total correlation | Alpha if deleted |
+|------|---------------------------------:|-----------------:|
+| Q3   |                            0.657 |            0.852 |
+| Q4   |                            0.823 |            0.785 |
+| Q5   |                            0.733 |            0.824 |
+| Q6   |                            0.673 |            0.853 |
+
+## Composite-Scale Decision
+
+The factor and reliability results support combining Q3–Q6 into one composite scale. The scale is unidimensional, the loadings are strong, and Cronbach’s alpha is above the commonly used 0.70 standard. Therefore, an employee-proficiency composite can be created by calculating the mean of the four items.
+
+```{r}
+efcu <- efcu |>
+  mutate(
+    employee_proficiency = rowMeans(
+      across(c(q3, q4, q5, q6)),
+      na.rm = TRUE
+    )
+  )
+
+describe(efcu$employee_proficiency)
+```
+
+The resulting composite has a mean of **4.205** and a standard deviation of **0.594**. Higher scores represent more positive attitudes toward employee proficiency.
+
+# R6: Attitude Toward Credit Union Operations
+
+## Items
+
+Only the four metric items Q31–Q34 are included:
+
+- **Q31:** Personnel will keep personal financial information confidential.
+- **Q32:** The Credit Union is prompt in processing loan applications.
+- **Q33:** The Credit Union’s financial services meet members’ needs.
+- **Q34:** Loan applications are simple and easy to complete.
+
+## R Code
+
+```{r}
+# Descriptive statistics and correlations
+describe(r6_items)
+r6_cor <- cor(r6_items, use = "pairwise.complete.obs")
+round(r6_cor, 3)
+
+# Factorability checks
+KMO(r6_cor)
+cortest.bartlett(r6_cor, n = nrow(r6_items))
+eigen(r6_cor)$values
+
+# Test the proposed one-component structure
+r6_factor_1 <- principal(
+  r6_items,
+  nfactors = 1,
+  rotate = "none",
+  scores = FALSE
+)
+r6_factor_1
+
+# Examine the possible two-component pattern
+r6_factor_2 <- principal(
+  r6_items,
+  nfactors = 2,
+  rotate = "varimax",
+  scores = FALSE
+)
+r6_factor_2
+
+# Reliability analysis
+r6_alpha <- alpha(r6_items, check.keys = TRUE)
+r6_alpha$total
+r6_alpha$item.stats
+r6_alpha$alpha.drop
+```
+
+## Item Descriptive Statistics
+
+| Item                      |  Mean | Standard deviation |
+|---------------------------|------:|-------------------:|
+| Q31 – Confidentiality     | 3.945 |              0.679 |
+| Q32 – Prompt processing   | 3.719 |              0.793 |
+| Q33 – Services meet needs | 3.594 |              0.681 |
+| Q34 – Simple applications | 3.461 |              0.783 |
+
+## Factor Analysis Results
+
+The KMO value was **0.496**, which is below the usual minimum of 0.50 and shows weak shared variance among the items. Bartlett’s test was significant, $\chi^2(6) = 39.33$, $p < .001$, but this alone does not establish a strong one-factor scale.
+
+The first component had an eigenvalue of **1.577** and explained only **39.4%** of the total variance. The second component had an eigenvalue of **1.034**, suggesting that the four items may measure more than one idea. The one-component loadings were uneven.
+
+| Item                      | One-component loading |
+|---------------------------|----------------------:|
+| Q31 – Confidentiality     |                 0.512 |
+| Q32 – Prompt processing   |                 0.844 |
+| Q33 – Services meet needs |                 0.483 |
+| Q34 – Simple applications |                 0.608 |
+
+The two-component solution separated Q32 and Q34 from Q31 and Q33. However, this solution does not provide enough evidence for creating two subscales because the KMO value was poor, the second eigenvalue was only slightly above 1.0, each component contained only two items, and the overall reliability was low.
+
+## Reliability Results
+
+Cronbach’s alpha for Q31–Q34 was only **0.472**, indicating poor internal consistency. Most corrected item-total correlations were below 0.30. Deleting an item did not raise alpha to an acceptable level.
+
+| Item | Corrected item-total correlation | Alpha if deleted |
+|------|---------------------------------:|-----------------:|
+| Q31  |                            0.195 |            0.467 |
+| Q32  |                            0.495 |            0.144 |
+| Q33  |                            0.187 |            0.473 |
+| Q34  |                            0.229 |            0.445 |
+
+## Composite-Scale Decision
+
+The evidence does **not** support combining Q31–Q34 into one R6 composite scale. The KMO value is low, the possible factor structure is unclear, and Cronbach’s alpha is below the acceptable level. Therefore, Q31–Q34 should remain separate variables in the next stage of analysis unless theory supports a revised measure and additional items are available.
+
+# Combined Analysis: Discriminant Validity
+
+Discriminant validity requires the items for employee proficiency and operational effectiveness to load on different factors. To test this, all eight items were entered into the same principal-component analysis and a two-component varimax solution was examined.
+
+## R Code
+
+```{r}
+all_cor <- cor(all_scale_items, use = "pairwise.complete.obs")
+
+KMO(all_cor)
+cortest.bartlett(all_cor, n = nrow(all_scale_items))
+eigen(all_cor)$values
+
+combined_factor <- principal(
+  all_scale_items,
+  nfactors = 2,
+  rotate = "varimax",
+  scores = FALSE
+)
+
+print(combined_factor$loadings, cutoff = 0.30)
+combined_factor$communality
+```
+
+## Results
+
+The combined analysis was suitable for factor analysis (KMO = 0.796; Bartlett’s test, $p < .001$). Two components explained 59.0% of the variance. Q3–Q6 loaded together on Component 1, but the R6 items did not consistently load on Component 2. Therefore, R3 showed clear discriminant validity, while R6 did not support a separate operational-effectiveness scale.
+
+| Item                      | Component 1 | Component 2 | Communality |
+|---------------------------|-------------|-------------|-------------|
+| Q3 – Courteous            | 0.785       | \< 0.30     | 0.624       |
+| Q4 – Helpful              | 0.879       | \< 0.30     | 0.787       |
+| Q5 – Professional         | 0.849       | \< 0.30     | 0.724       |
+| Q6 – Available            | 0.798       | \< 0.30     | 0.675       |
+| Q31 – Confidentiality     | 0.370       | \< 0.30     | 0.174       |
+| Q32 – Prompt processing   | 0.379       | 0.753       | 0.711       |
+| Q33 – Services meet needs | 0.506       | \< 0.30     | 0.273       |
+| Q34 – Simple applications | \< 0.30     | 0.865       | 0.755       |
+
+# Overall Summary
+
+| Scale        | Validity      | Reliability           | Decision           |
+|--------------|---------------|-----------------------|--------------------|
+| R3 (Q3–Q6)   | Supported     | \\(\\alpha = 0.866\\) | Create composite   |
+| R6 (Q31–Q34) | Not supported | \\(\\alpha = 0.472\\) | Analyze separately |
+
+R3 is valid and reliable, so Q3–Q6 can be averaged. R6 lacks sufficient validity and reliability, so Q31–Q34 should remain separate.
+
+# Appendix
+
+**GitHub Repository:** [IBM-6500-Case31-Reliability-Factor-Analysis](https://github.com/gracesen/IBM-6500-Case31-Reliability-Factor-Analysis)
+
+**GitHub Pages:** [Published Reliability and Factor Analysis Report](https://gracesen.github.io/IBM-6500-Case31-Reliability-Factor-Analysis/)
